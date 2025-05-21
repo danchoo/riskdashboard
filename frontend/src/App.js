@@ -227,19 +227,19 @@ function App() {
   };
 
   // Fetch risk metrics
-  const fetchRisk = async () => {
+// Keep your existing fetchRisk function
+const fetchRisk = async () => {
   if (!selected) return;
   
   try {
     setLoading(prev => ({ ...prev, risk: true }));
     setError(prev => ({ ...prev, risk: null }));
     
-    const res = await api.post('/risk_with_benchmark', {
+    const res = await api.post('/risk', {
       portfolio_id: selected,
       start_date: startDate,
       end_date: endDate,
-      base_currency: currency,
-      benchmark_id: benchmark
+      base_currency: currency
     });
     
     setRisk(res.data);
@@ -253,6 +253,36 @@ function App() {
     setLoading(prev => ({ ...prev, risk: false }));
   }
 };
+
+  // Add the new fetchRiskWithBenchmark function
+  const fetchRiskWithBenchmark = async () => {
+    if (!selected) return;
+    
+    try {
+      setLoading(prev => ({ ...prev, risk: true }));
+      setError(prev => ({ ...prev, risk: null }));
+      
+      console.log('Sending benchmark_id:', benchmark);  // Debug logging
+      
+      const res = await api.post('/risk_with_benchmark', {
+        portfolio_id: selected,
+        start_date: startDate,
+        end_date: endDate,
+        base_currency: currency,
+        benchmark_id: benchmark
+      });
+      
+      setRisk(res.data);
+    } catch (err) {
+      console.error('Error fetching risk metrics with benchmark:', err);
+      setError(prev => ({ 
+        ...prev, 
+        risk: 'Failed to calculate risk metrics with benchmark. Please try again.' 
+      }));
+    } finally {
+      setLoading(prev => ({ ...prev, risk: false }));
+    }
+  };
 
   // Fetch CMA data
   const fetchCma = async () => {
@@ -494,8 +524,9 @@ function App() {
         <div className="main">
           {activeTab === 'Risk Metrics' && (
             <section className="risk-metrics-section">
-              <div className="section-header">
-                <h2>Portfolio Risk Analysis</h2>
+            <div className="section-header">
+              <h2>Portfolio Risk Analysis</h2>
+              <div className="button-group">
                 <button 
                   onClick={fetchRisk} 
                   disabled={!selected || loading.risk}
@@ -503,7 +534,18 @@ function App() {
                 >
                   {loading.risk ? 'Calculating...' : 'Calculate Risk'}
                 </button>
+                {benchmark && (
+                  <button 
+                    onClick={fetchRiskWithBenchmark} 
+                    disabled={!selected || loading.risk}
+                    className="secondary-button"
+                    style={{ marginLeft: '10px' }}
+                  >
+                    Compare to {benchmarks.find(b => b.id === benchmark)?.name || benchmark}
+                  </button>
+                )}
               </div>
+            </div>
               
               {error.risk && <div className="error-message">{error.risk}</div>}
               
