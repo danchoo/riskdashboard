@@ -345,6 +345,11 @@ function App() {
 
   // Format currency values
   const formatCurrency = (value) => {
+    // Check for null, undefined, or NaN
+    if (value === null || value === undefined || isNaN(value)) {
+      return `${currency} --`;  // Return a placeholder
+    }
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
@@ -353,8 +358,12 @@ function App() {
     }).format(value);
   };
 
-  // Format percentage values
   const formatPercent = (value) => {
+    // Check for null, undefined, or NaN
+    if (value === null || value === undefined || isNaN(value)) {
+      return '--';  // Return a placeholder
+    }
+    
     return new Intl.NumberFormat('en-US', {
       style: 'percent',
       minimumFractionDigits: 2,

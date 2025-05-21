@@ -3,7 +3,7 @@ export const benchmarks = [
     id: "asx200",
     name: "S&P/ASX 200",
     description: "Australian stock market benchmark",
-    color: "#0066CC"
+    color: "#0066CC",
   },
   {
     id: "msci_world",
