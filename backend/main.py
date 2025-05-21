@@ -396,6 +396,156 @@ async def get_risk(data: RiskInput):
             warning="Fallback values used: price or FX data unavailable."
         )
 
+@app.post("/api/risk_with_benchmark")
+async def get_risk_with_benchmark(data: RiskInput):
+    """Calculate portfolio risk metrics with benchmark comparison"""
+    # Get portfolio risk metrics
+    portfolio_risk = await get_risk(data)
+    
+    # Get benchmark data
+    benchmark_id = data.benchmark_id if hasattr(data, 'benchmark_id') else "asx200"
+    benchmark_data = get_benchmark_data(benchmark_id, data.start_date, data.end_date)
+    
+    # Calculate benchmark risk metrics
+    benchmark_risk = calculate_benchmark_risk(benchmark_data)
+    
+    # Add comparison metrics
+    comparison = {
+        "tracking_error": calculate_tracking_error(portfolio_risk, benchmark_risk),
+        "information_ratio": calculate_information_ratio(portfolio_risk, benchmark_risk),
+        "beta": calculate_beta(portfolio_risk, benchmark_risk),
+        "alpha": calculate_alpha(portfolio_risk, benchmark_risk)
+    }
+    
+    # Return combined results
+    return {
+        "portfolio": portfolio_risk,
+        "benchmark": benchmark_risk,
+        "comparison": comparison
+    }
+
+def get_benchmark_data(benchmark_id, start_date, end_date):
+    """Fetch benchmark price data"""
+    if benchmark_id == "composite":
+        # Special handling for composite indices
+        # This would combine multiple indices based on target weights
+        return calculate_composite_benchmark()
+    else:
+        # Fetch data for standard benchmarks
+        benchmarks = {b["id"]: b["ticker"] for b in list_benchmarks()}
+        ticker = benchmarks.get(benchmark_id)
+        
+        if not ticker:
+            raise ValueError(f"Unknown benchmark: {benchmark_id}")
+        
+        # Use your existing price fetching function
+        return fetch_benchmark_prices(ticker, start_date, end_date)
+
+def fetch_benchmark_prices(ticker, start_date, end_date):
+    """
+    Fetch historical price data for benchmark tickers
+    
+    Args:
+        ticker (str): The benchmark ticker symbol
+        start_date (str): Start date in YYYY-MM-DD format
+        end_date (str): End date in YYYY-MM-DD format
+        
+    Returns:
+        pd.DataFrame: DataFrame containing price history
+    """
+    try:
+        # Convert string dates to datetime objects
+        start = pd.to_datetime(start_date)
+        end = pd.to_datetime(end_date)
+        
+        # Add a small buffer to ensure we get all data
+        start = start - timedelta(days=5)
+        end = end + timedelta(days=5)
+        
+        # Use your existing yfinance function if you have one
+        if hasattr(yf, 'download'):
+            data = yf.download(ticker, start=start, end=end)
+            
+            # Get adjusted close prices
+            if 'Adj Close' in data.columns:
+                prices = data['Adj Close']
+            else:
+                prices = data['Close']
+                
+            # Filter to the actual date range
+            actual_start = pd.to_datetime(start_date)
+            actual_end = pd.to_datetime(end_date)
+            prices = prices[(prices.index >= actual_start) & (prices.index <= actual_end)]
+            
+            return prices
+        else:
+            # Alternative implementation if yfinance is not available
+            logger.error("yfinance module not available")
+            raise ValueError("Price data service unavailable")
+    
+    except Exception as e:
+        logger.error(f"Error fetching benchmark prices for {ticker}: {str(e)}")
+        raise ValueError(f"Failed to fetch benchmark data: {str(e)}")
+
+def calculate_tracking_error(portfolio, benchmark):
+    """Calculate tracking error between portfolio and benchmark"""
+    # Implementation details...
+    return tracking_error_value
+
+def calculate_information_ratio(portfolio, benchmark):
+    """Calculate information ratio"""
+    # Implementation details...
+    return information_ratio_value
+
+def calculate_beta(portfolio, benchmark):
+    """Calculate portfolio beta relative to benchmark"""
+    # Implementation details...
+    return beta_value
+
+def calculate_alpha(portfolio, benchmark):
+    """Calculate portfolio alpha (excess return)"""
+    # Implementation details...
+    return alpha_value
+
+def calculate_dhhf_benchmark(start_date, end_date):
+    """Calculate a synthetic benchmark based on DHHF target allocations"""
+    # DHHF target allocations
+    allocations = {
+        "^AXJO": 0.37,  # ASX 200 for Australian equities
+        "URTH": 0.40,   # MSCI World ETF for developed markets
+        "EEM": 0.10,    # MSCI Emerging Markets ETF
+        "^AXPJ": 0.13   # ASX 200 A-REIT index for property
+    }
+    
+    # Fetch data for all components
+    component_data = {}
+    for ticker, weight in allocations.items():
+        try:
+            prices = fetch_price_data(ticker, start_date, end_date)
+            component_data[ticker] = {
+                "prices": prices,
+                "weight": weight
+            }
+        except Exception as e:
+            logger.error(f"Error fetching data for {ticker}: {str(e)}")
+    
+    # Calculate weighted returns
+    dates = sorted(set().union(*[set(data["prices"].index) for data in component_data.values()]))
+    benchmark_values = pd.Series(index=dates)
+    
+    # Fill with weighted values
+    for date in dates:
+        value = 0
+        for ticker, data in component_data.items():
+            if date in data["prices"].index:
+                value += data["prices"].loc[date] * data["weight"]
+        benchmark_values[date] = value
+    
+    # Convert to returns
+    benchmark_returns = benchmark_values.pct_change().dropna()
+    
+    return benchmark_returns
+
 @app.post("/api/cma", response_model=CMAOutput)
 async def get_cma(data: CMAInput):
     """Calculate capital market assumptions"""
@@ -635,6 +785,30 @@ def norm_cdf(x):
     return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
 # Additional endpoints
+@app.get("/api/benchmarks")
+def list_benchmarks():
+    """List available benchmarks"""
+    return [
+        {
+            "id": "asx200",
+            "name": "S&P/ASX 200",
+            "description": "Australian stock market benchmark",
+            "ticker": "^AXJO"
+        },
+        {
+            "id": "msci_world",
+            "name": "MSCI World Index",
+            "description": "Global developed markets benchmark",
+            "ticker": "URTH"  # Using ETF as proxy
+        },
+        {
+            "id": "balanced_index",
+            "name": "70/30 Growth Index",
+            "description": "Composite index (70% equity, 30% bonds)",
+            "ticker": "composite"  # Special handling for composite indices
+        }
+    ]
+
 @app.get("/api/health")
 def health_check():
     """API health check endpoint"""

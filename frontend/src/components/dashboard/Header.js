@@ -1,15 +1,18 @@
 import React from 'react';
+import { benchmarks } from '../../utils/constants'; // Import benchmarks
 
 const Header = ({ 
-  portfolios, 
-  selected, 
-  startDate, 
-  endDate, 
-  currency, 
-  handlePortfolioChange, 
-  setStartDate, 
-  setEndDate, 
-  setCurrency, 
+  portfolios,
+  selected,
+  startDate,
+  endDate,
+  currency,
+  benchmark,
+  handlePortfolioChange,
+  setStartDate,
+  setEndDate,
+  setCurrency,
+  setBenchmark,
   loading 
 }) => {
   return (
@@ -32,7 +35,22 @@ const Header = ({
             ))}
           </select>
         </div>
-        
+
+        <div className="control-group">
+          <label>Benchmark:</label>
+          <select 
+            onChange={e => setBenchmark(e.target.value)} 
+            value={benchmark}
+          >
+            <option value="">None</option>
+            {benchmarks.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>    
+
         <div className="control-group">
           <label>Date Range:</label>
           <input 

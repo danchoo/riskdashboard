@@ -97,6 +97,7 @@ function App() {
   const [risk, setRisk] = useState(null);
   const [cma, setCma] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [benchmark, setBenchmark] = useState("asx200"); // Default to ASX 200
   const [holdings, setHoldings] = useState([]);
   const [activeTab, setActiveTab] = useState('Risk Metrics');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -227,30 +228,31 @@ function App() {
 
   // Fetch risk metrics
   const fetchRisk = async () => {
-    if (!selected) return;
+  if (!selected) return;
+  
+  try {
+    setLoading(prev => ({ ...prev, risk: true }));
+    setError(prev => ({ ...prev, risk: null }));
     
-    try {
-      setLoading(prev => ({ ...prev, risk: true }));
-      setError(prev => ({ ...prev, risk: null }));
-      
-      const res = await api.post('/risk', {
-        portfolio_id: selected,
-        start_date: startDate,
-        end_date: endDate,
-        base_currency: currency
-      });
-      
-      setRisk(res.data);
-    } catch (err) {
-      console.error('Error fetching risk metrics:', err);
-      setError(prev => ({ 
-        ...prev, 
-        risk: 'Failed to calculate risk metrics. Please try again.' 
-      }));
-    } finally {
-      setLoading(prev => ({ ...prev, risk: false }));
-    }
-  };
+    const res = await api.post('/risk_with_benchmark', {
+      portfolio_id: selected,
+      start_date: startDate,
+      end_date: endDate,
+      base_currency: currency,
+      benchmark_id: benchmark
+    });
+    
+    setRisk(res.data);
+  } catch (err) {
+    console.error('Error fetching risk metrics:', err);
+    setError(prev => ({ 
+      ...prev, 
+      risk: 'Failed to calculate risk metrics. Please try again.' 
+    }));
+  } finally {
+    setLoading(prev => ({ ...prev, risk: false }));
+  }
+};
 
   // Fetch CMA data
   const fetchCma = async () => {
@@ -471,10 +473,12 @@ function App() {
           startDate={startDate}
           endDate={endDate}
           currency={currency}
+          benchmark={benchmark}
           handlePortfolioChange={handlePortfolioChange}
           setStartDate={setStartDate}
           setEndDate={setEndDate}
           setCurrency={setCurrency}
+          setBenchmark={setBenchmark}
           loading={loading}
         />
 
